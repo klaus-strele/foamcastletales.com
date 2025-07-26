@@ -1,5 +1,26 @@
 "use strict";
 
+async function startCamera() {
+    const video = document.getElementById('video');
+    const constraints = {
+        video: {
+            facingMode: 'environment' // Use 'user' for front camera
+        }
+    };
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints, { video: true });
+        video.srcObject = stream;
+
+        // Ensure the video element is ready to play - from MDN
+        video.onloadedmetadata = () => {
+            video.play();
+        };
+
+    } catch (err) {
+        console.error("Error accessing the camera", err);
+    }
+}
+
 function getGeoLocation() {
     return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {

@@ -7,7 +7,20 @@
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <h1>foamcastletales</h1>
+    <h3>foamcastletales</h3>
+
+    <!-- Take Picture-->
+    <div>
+        <video id="video" autoplay></video>
+    </div>
+    <div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <img id="photo" alt="Captured photo will appear here">
+    </div>
+    <div>
+        <button id="startCameraButton" onclick="startCamera()">Start Camera</button>
+        <button id="captureButton">Take Photo</button>
+    </div>
 
     <!-- Geolocation -->
     <div>
