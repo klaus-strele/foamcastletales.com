@@ -9,6 +9,20 @@
 <body>
     <h3>foamcastletales</h3>
 
+    <!-- Camera Input (zurichat) -->
+    <div>
+        <label for="cameraInput">Open Camera</label>
+        <input
+            type="file"
+            id="cameraInput"
+            accept="image/*"
+            capture="environment"
+        >
+    </div>
+    <div>
+        <img id="preview" alt="Image preview" />
+    </div>
+
     <!-- Take Picture-->
     <div>
         <video id="video" autoplay></video>
