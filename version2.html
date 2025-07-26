@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Camera Capture</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: auto; }
+    .hidden { display: none; }
+    .btn {
+      background: #0072c6;
+      color: #fff;
+      padding: 14px 22px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 0;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    .btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .icon {
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    #video, #preview {
+      margin: 15px 0;
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid #eee;
+      background: #f8f8f8;
+    }
+    #message {
+      color: #b00;
+      margin-bottom: 10px;
+      font-size: 1em;
+    }
+    #actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    #actions .btn {
+      width: 48%;
+    }
+  </style>
+</head>
+<body>
+  <h2>Take a Photo</h2>
+  <div id="instructions"></div>
+  <div id="message"></div>
+  <label for="cameraInput" id="fileLabel" class="btn hidden">
+    <span class="icon">📷</span> Open Camera
+  </label>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+
+  <button id="startWebcam" class="btn hidden"><span class="icon">💻</span>Start Webcam</button>
+  <video id="video" class="hidden" playsinline autoplay></video>
+
+  <div id="actions" class="hidden">
+    <button id="captureBtn" class="btn"><span class="icon">📸</span>Capture Photo</button>
+    <button id="stopBtn" class="btn" style="background:#d9534f;"><span class="icon">✖️</span>Cancel</button>
+  </div>
+  <img id="preview" alt="Image preview" class="hidden" />
+  <div id="afterCapture" class="hidden">
+    <button id="retakeBtn" class="btn"><span class="icon">🔄</span>Retake</button>
+    <button id="confirmBtn" class="btn" style="background:#5cb85c;"><span class="icon">✔️</span>Use Photo</button>
+  </div>
+
+  <script>
+    // Device and feature detection
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+    // UI elements
+    const fileLabel = document.getElementById('fileLabel');
+    const cameraInput = document.getElementById('cameraInput');
+    const startWebcam = document.getElementById('startWebcam');
+    const video = document.getElementById('video');
+    const preview = document.getElementById('preview');
+    const captureBtn = document.getElementById('captureBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const actions = document.getElementById('actions');
+    const afterCapture = document.getElementById('afterCapture');
+    const instructions = document.getElementById('instructions');
+    const message = document.getElementById('message');
+
+    let stream = null;
+    let capturedBlob = null;
+
+    // UI Setup
+    function setUI(device) {
+      fileLabel.classList.add('hidden');
+      startWebcam.classList.add('hidden');
+      instructions.textContent = '';
+      if (device === 'mobile') {
+        fileLabel.classList.remove('hidden');
+        instructions.textContent = 'Tap "Open Camera" to take a photo or select one from your gallery.';
+      } else if (device === 'desktop') {
+        startWebcam.classList.remove('hidden');
+        instructions.textContent = 'Click "Start Webcam" to take a photo using your webcam.';
+      }
+    }
+
+    // Init UI
+    if (hasGetUserMedia && !isMobile) {
+      setUI('desktop');
+    } else {
+      setUI('mobile');
+    }
+
+    // Mobile: Input capture
+    cameraInput.addEventListener('change', function(event) {
+      message.textContent = '';
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          processImage(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Desktop: Webcam logic
+    startWebcam.addEventListener('click', async function() {
+      message.textContent = '';
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        video.classList.remove('hidden');
+        actions.classList.remove('hidden');
+        startWebcam.classList.add('hidden');
+        preview.classList.add('hidden');
+        afterCapture.classList.add('hidden');
+      } catch (err) {
+        message.textContent = 'Could not access the webcam. Please check your browser settings.';
+      }
+    });
+
+    captureBtn.addEventListener('click', function() {
+      capturePhoto();
+    });
+
+    stopBtn.addEventListener('click', function() {
+      stopWebcam();
+    });
+
+    retakeBtn.addEventListener('click', function() {
+      preview.classList.add('hidden');
+      afterCapture.classList.add('hidden');
+      if (hasGetUserMedia && !isMobile) {
+        // Restart webcam
+        startWebcam.click();
+      } else {
+        cameraInput.value = '';
+        fileLabel.classList.remove('hidden');
+      }
+    });
+
+    confirmBtn.addEventListener('click', function() {
+      message.textContent = 'Photo captured and ready for upload!';
+      afterCapture.classList.add('hidden');
+      // Use capturedBlob for uploading if needed
+    });
+
+    // Webcam capture
+    function capturePhoto() {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 800, MAX_HEIGHT = 800;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+
+      // Maintain aspect ratio
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height = Math.round(height * (MAX_WIDTH / width));
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width = Math.round(width * (MAX_HEIGHT / height));
+          height = MAX_HEIGHT;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+
+      // Stop webcam stream
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      video.classList.add('hidden');
+      actions.classList.add('hidden');
+
+      // Show preview (compressed)
+      canvas.toBlob(function(blob) {
+        capturedBlob = blob;
+        preview.src = URL.createObjectURL(blob);
+        preview.classList.remove('hidden');
+        afterCapture.classList.remove('hidden');
+      }, 'image/jpeg', 0.7);
+    }
+
+    function stopWebcam() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      video.classList.add('hidden');
+      actions.classList.add('hidden');
+      startWebcam.classList.remove('hidden');
+      preview.classList.add('hidden');
+      afterCapture.classList.add('hidden');
+    }
+
+    // Mobile/desktop: process selected image
+    function processImage(dataUrl) {
+      const img = new Image();
+      img.onload = function() {
+        const MAX_WIDTH = 800, MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round(height * (MAX_WIDTH / width));
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round(width * (MAX_HEIGHT / height));
+            height = MAX_HEIGHT;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(function(blob) {
+          capturedBlob = blob;
+          preview.src = URL.createObjectURL(blob);
+          preview.classList.remove('hidden');
+          afterCapture.classList.remove('hidden');
+          fileLabel.classList.add('hidden');
+        }, 'image/jpeg', 0.7);
+      };
+      img.src = dataUrl;
+    }
+  </script>
+</body>
+</html>

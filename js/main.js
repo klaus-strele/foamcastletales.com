@@ -1,5 +1,10 @@
 "use strict";
 
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+console.log("isMobile:", isMobile);
+console.log("hasGetUserMedia:", hasGetUserMedia);
+
 
 document.getElementById('cameraInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
